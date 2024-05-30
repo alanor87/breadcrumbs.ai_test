@@ -1,7 +1,5 @@
 onmessage = function (e) {
     try {
-        console.time('time');
-
         let smallestVolumeTetrahedron;
 
         // Parsing all the points data from the txt to a 2d array.
@@ -15,29 +13,37 @@ onmessage = function (e) {
                     .map(number => parseFloat(number))
             )
 
-        // Getting list of all the unique values, bind to each of the points.
-
         postMessage({ type: 'progress', data: 'Getting list of all the unique values, bind to each of the points' });
+        // Getting list of all the unique values, bind to each of the points.
         const uniquePointsValues = pointsList.reduce((acc, point) => {
             acc.includes(point[3]) ? null : acc.push(point[3]);
             return acc
-        }, [])
+        }, []).sort();
+
+
+        // Implication applied, that the values are from 0 to 100 - with even step between.
+        // Like in the test files  - 0, 10, 20 ...100 or 0, 1, 2 ... 100.
+        // This is the value ofa difference between adjascent n values.
+        const step = uniquePointsValues[1] - uniquePointsValues[0];
 
         // Finding all the combinations of the points values, that satisfy the condition of summ === 100.
         function findCombinations() {
-            const uv = uniquePointsValues; // just shortening long variable name.
-            const { length } = uv;
+            const length = 100;
             const combinations = [];
-
+            let count = 1;
             // Generate all valid values combinations (for which summ === 100). No recursion, for simpler readability and more clear logics.
-            for (let i = 0; i < length; i++) {
-                for (let j = 0; j < length; j++) {
-                    for (let k = 0; k < length; k++) {
-                        for (let l = 0; l < length; l++) {
+            for (let i = length; i >= 0; i -= step) {
+                for (let j = length - i; j >= 0; j -= step) {
+                    for (let k = length - i - j; k >= 0; k -= step) {
+                        for (let l = length - i - j - k; l >= 0; l -= step) {
+
+                            const summ = i + j + k + l;
+                            if (summ !== 100) continue;
+
                             // Since the position of the element in the array of points is irrelevant, sorting combination 
                             // for simpler filtering in the next interations.
-                            const currentCombination = [uv[i], uv[j], uv[k], uv[l]].sort();
-                            const summ = uv[i] + uv[j] + uv[k] + uv[l];
+                            const currentCombination = [i, j, k, l].sort();
+
                             // Since the position of the element in the array of points is irrelevant, we need to weed out combinations
                             // with the same values on different positions, e.g. [10, 0, 20, 70] and [0, 20, 70, 10].
                             const isRepeat = combinations.some(combination => {
@@ -46,9 +52,14 @@ onmessage = function (e) {
                                     combination[2] === currentCombination[2] &&
                                     combination[3] === currentCombination[3] &&
                                     combination[4] === currentCombination[4])
-                            })
+                            });
+                            if (isRepeat) continue;
 
-                            if (summ === 100 && !isRepeat) combinations.push(currentCombination);
+                            combinations.push(currentCombination);
+                            console.clear();
+                            console.log('findCombinations combinations : ', combinations.length + ' count : ' + count);
+
+                            count += 1;
                         }
                     }
                 }
@@ -57,7 +68,7 @@ onmessage = function (e) {
             return combinations;
         }
 
-        const validPointsCombinations = findCombinations(uniquePointsValues);
+        const validPointsCombinations = findCombinations();
         postMessage({ type: 'progress', data: 'The valid points values combinations are : \n' + validPointsCombinations.join('\n') });
 
 
@@ -71,7 +82,6 @@ onmessage = function (e) {
                 acc[point[3]].push([...point, index]);
                 return acc;
             }, {});
-
             const tetrahedronsList = [];
 
             validPointsCombinations.forEach(valuesCombination => {
@@ -91,7 +101,7 @@ onmessage = function (e) {
                                     pointsGroupsByValue[fourth][l].at(-1),
                                 ].sort();
                                 // Checking for duplicate indexes, to avoid using the same point twice.
-                                const duplicateIndex = currentCombination.length !== new Set(currentCombination).size;
+                                if (new Set(currentCombination).size !== 4) continue;
 
                                 // Weed out combinations with the same values on different positions.
                                 const isRepeat = tetrahedronsList.some(combination => {
@@ -102,7 +112,10 @@ onmessage = function (e) {
                                         combination[4] === currentCombination[4])
                                 });
 
-                                if (!duplicateIndex && !isRepeat) tetrahedronsList.push(currentCombination);
+                                if (isRepeat) continue;
+
+                                tetrahedronsList.push(currentCombination);
+
                             }
                         }
                     }
@@ -112,12 +125,15 @@ onmessage = function (e) {
         }
 
         postMessage({ type: 'progress', data: 'Calculating all the potential tetrahedrons' });
-        // And here we have the list of all the potential tetrahedrons (by points indexes in the original list), that satisfy the sum === 100 condition.
+        // List of all the potential tetrahedrons (by points indexes in the original list), that satisfy the sum === 100 condition.
         const tetrahedronsPointsIndexesList = findTetrahedronsList();
 
         postMessage({ type: 'progress', data: 'There are ' + tetrahedronsPointsIndexesList.length + ' tethraedrons, that satisfy summ === 100 condition' });
 
+
+        // Now have to find the one with the smallest volume.
         // Thanks for the courtesy of providing the volume calculation code!
+
         function volumeOfTetrahedron(p1, p2, p3, p4) {
             // Vectors from p1 to p2, p3, and p4
             let AB = [p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]];
@@ -147,6 +163,7 @@ onmessage = function (e) {
         //   volume,
         //   [...indexes of the tetrahedron vertices ]
         // ]
+
         postMessage({ type: 'progress', data: ' Calculating the volume of all the found tetrahedrons' });
         tetrahedronsPointsIndexesList.forEach((singleFigure) => {
             // For each set of points (each tetrahedron), getting the points actual coordinates by their indexes in the
@@ -167,15 +184,13 @@ onmessage = function (e) {
 
         smallestVolumeTetrahedron[1].sort(((a, b) => a - b));
 
-
         postMessage({ type: 'progress', data: 'The smallest volume is : ' + smallestVolumeTetrahedron[0] });
-
         postMessage({ type: 'result', data: smallestVolumeTetrahedron[1].join() });
+    }
+    catch (e) {
+        postMessage({ type: 'error', data: e.message });
+    }
+    finally {
         console.timeEnd('time')
     }
-    catch(e) {
-        postMessage({ type: 'error', data:  e.message });
-    }
-  
-
 }
