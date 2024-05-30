@@ -117,7 +117,6 @@ function calculateSmallestTetrahedron(event) {
                                 if (smallestVolumeTetrahedron) {
                                     if (vol <= smallestVolumeTetrahedron[0]) {
                                         smallestVolumeTetrahedron = [vol, [...currentCombination]];
-                                        console.log('Count : ', count, ' smallest : ', smallestVolumeTetrahedron);
                                         postMessage({ type: 'progress', data: `Iteration : ${count}, current smallest volume : ${smallestVolumeTetrahedron[0]}` });
                                     }
                                 } else {
@@ -174,8 +173,6 @@ function calculateSmallestTetrahedron(event) {
 
         postMessage({ type: 'progress', data: 'The smallest volume is : ' + smallestVolumeTetrahedron[0] });
         postMessage({ type: 'result', data: smallestVolumeTetrahedron[1] });
-
-        console.timeEnd('time')
 
         return smallestVolumeTetrahedron;
     }
