@@ -36,5 +36,7 @@ refs.input.addEventListener('change', (e) => {
 })
 
 function onFileLoad() {
+    refs.progress.innerHTML = '';
+    refs.result.innerHTML = '';
     worker.postMessage(reader.result);
 }
